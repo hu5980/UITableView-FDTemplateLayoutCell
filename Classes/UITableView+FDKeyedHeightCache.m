@@ -30,6 +30,12 @@
 
 @implementation FDKeyedHeightCache
 
+
+/**
+ 初始化方法
+
+ @return <#return value description#>
+ */
 - (instancetype)init {
     self = [super init];
     if (self) {
@@ -43,15 +49,30 @@
     return UIDeviceOrientationIsPortrait([UIDevice currentDevice].orientation) ? self.mutableHeightsByKeyForPortrait: self.mutableHeightsByKeyForLandscape;
 }
 
+// 是否存在通过key 获取缓存高度
 - (BOOL)existsHeightForKey:(id<NSCopying>)key {
     NSNumber *number = self.mutableHeightsByKeyForCurrentOrientation[key];
     return number && ![number isEqualToNumber:@-1];
 }
 
+
+/**
+ 缓存高度 通过key
+
+ @param height <#height description#>
+ @param key <#key description#>
+ */
 - (void)cacheHeight:(CGFloat)height byKey:(id<NSCopying>)key {
     self.mutableHeightsByKeyForCurrentOrientation[key] = @(height);
 }
 
+
+/**
+ 通过key 获取高度
+
+ @param key <#key description#>
+ @return <#return value description#>
+ */
 - (CGFloat)heightForKey:(id<NSCopying>)key {
 #if CGFLOAT_IS_DOUBLE
     return [self.mutableHeightsByKeyForCurrentOrientation[key] doubleValue];
@@ -60,11 +81,21 @@
 #endif
 }
 
+
+/**
+ 清除这个key 所缓存的height
+
+ @param key <#key description#>
+ */
 - (void)invalidateHeightForKey:(id<NSCopying>)key {
     [self.mutableHeightsByKeyForPortrait removeObjectForKey:key];
     [self.mutableHeightsByKeyForLandscape removeObjectForKey:key];
 }
 
+
+/**
+ 清除所有的缓存height
+ */
 - (void)invalidateAllHeightCache {
     [self.mutableHeightsByKeyForPortrait removeAllObjects];
     [self.mutableHeightsByKeyForLandscape removeAllObjects];

@@ -26,8 +26,8 @@
 typedef NSMutableArray<NSMutableArray<NSNumber *> *> FDIndexPathHeightsBySection;
 
 @interface FDIndexPathHeightCache ()
-@property (nonatomic, strong) FDIndexPathHeightsBySection *heightsBySectionForPortrait;
-@property (nonatomic, strong) FDIndexPathHeightsBySection *heightsBySectionForLandscape;
+@property (nonatomic, strong) FDIndexPathHeightsBySection *heightsBySectionForPortrait;   //竖屏
+@property (nonatomic, strong) FDIndexPathHeightsBySection *heightsBySectionForLandscape;  //横屏
 @end
 
 @implementation FDIndexPathHeightCache
@@ -50,18 +50,42 @@ typedef NSMutableArray<NSMutableArray<NSNumber *> *> FDIndexPathHeightsBySection
     block(self.heightsBySectionForLandscape);
 }
 
+
+/**
+ 当前indexPath 存在高度
+
+ @param indexPath indexpath
+ @return
+ */
 - (BOOL)existsHeightAtIndexPath:(NSIndexPath *)indexPath {
+    // 是否需要创建缓存
     [self buildCachesAtIndexPathsIfNeeded:@[indexPath]];
+    // 获取高度
     NSNumber *number = self.heightsBySectionForCurrentOrientation[indexPath.section][indexPath.row];
     return ![number isEqualToNumber:@-1];
 }
 
+
+/**
+  缓存indexPath 的高度
+
+ @param height 高度
+ @param indexPath indexPath
+ */
 - (void)cacheHeight:(CGFloat)height byIndexPath:(NSIndexPath *)indexPath {
     self.automaticallyInvalidateEnabled = YES;
     [self buildCachesAtIndexPathsIfNeeded:@[indexPath]];
+    // 设置高度
     self.heightsBySectionForCurrentOrientation[indexPath.section][indexPath.row] = @(height);
 }
 
+
+/**
+ 获取indexpath的高度
+
+ @param indexPath <#indexPath description#>
+ @return <#return value description#>
+ */
 - (CGFloat)heightForIndexPath:(NSIndexPath *)indexPath {
     [self buildCachesAtIndexPathsIfNeeded:@[indexPath]];
     NSNumber *number = self.heightsBySectionForCurrentOrientation[indexPath.section][indexPath.row];
@@ -72,6 +96,12 @@ typedef NSMutableArray<NSMutableArray<NSNumber *> *> FDIndexPathHeightsBySection
 #endif
 }
 
+
+/**
+ 移除indexPath的缓存高度
+
+ @param indexPath <#indexPath description#>
+ */
 - (void)invalidateHeightAtIndexPath:(NSIndexPath *)indexPath {
     [self buildCachesAtIndexPathsIfNeeded:@[indexPath]];
     [self enumerateAllOrientationsUsingBlock:^(FDIndexPathHeightsBySection *heightsBySection) {
@@ -79,12 +109,22 @@ typedef NSMutableArray<NSMutableArray<NSNumber *> *> FDIndexPathHeightsBySection
     }];
 }
 
+
+/**
+ 移除所有的缓存高度
+ */
 - (void)invalidateAllHeightCache {
     [self enumerateAllOrientationsUsingBlock:^(FDIndexPathHeightsBySection *heightsBySection) {
         [heightsBySection removeAllObjects];
     }];
 }
 
+
+/**
+ 是否要添加Caches 在缓存中
+
+ @param indexPaths
+ */
 - (void)buildCachesAtIndexPathsIfNeeded:(NSArray *)indexPaths {
     // Build every section array or row array which is smaller than given index path.
     [indexPaths enumerateObjectsUsingBlock:^(NSIndexPath *indexPath, NSUInteger idx, BOOL *stop) {
@@ -93,6 +133,12 @@ typedef NSMutableArray<NSMutableArray<NSNumber *> *> FDIndexPathHeightsBySection
     }];
 }
 
+
+/**
+ 是否要添加Section到caches 中
+
+ @param targetSection
+ */
 - (void)buildSectionsIfNeeded:(NSInteger)targetSection {
     [self enumerateAllOrientationsUsingBlock:^(FDIndexPathHeightsBySection *heightsBySection) {
         for (NSInteger section = 0; section <= targetSection; ++section) {
@@ -103,11 +149,19 @@ typedef NSMutableArray<NSMutableArray<NSNumber *> *> FDIndexPathHeightsBySection
     }];
 }
 
+
+/**
+ 是否要添加row 到caches 中
+
+ @param targetRow <#targetRow description#>
+ @param section <#section description#>
+ */
 - (void)buildRowsIfNeeded:(NSInteger)targetRow inExistSection:(NSInteger)section {
     [self enumerateAllOrientationsUsingBlock:^(FDIndexPathHeightsBySection *heightsBySection) {
         NSMutableArray<NSNumber *> *heightsByRow = heightsBySection[section];
         for (NSInteger row = 0; row <= targetRow; ++row) {
             if (row >= heightsByRow.count) {
+                // 设置默认高度为-1
                 heightsByRow[row] = @-1;
             }
         }
@@ -117,7 +171,7 @@ typedef NSMutableArray<NSMutableArray<NSNumber *> *> FDIndexPathHeightsBySection
 @end
 
 @implementation UITableView (FDIndexPathHeightCache)
-
+// 用关联对象获取cache
 - (FDIndexPathHeightCache *)fd_indexPathHeightCache {
     FDIndexPathHeightCache *cache = objc_getAssociatedObject(self, _cmd);
     if (!cache) {
@@ -143,6 +197,7 @@ static void __FD_TEMPLATE_LAYOUT_CELL_PRIMARY_CALL_IF_CRASH_NOT_OUR_BUG__(void (
     FDPrimaryCall([self fd_reloadData];);
 }
 
+// 交换load 里面的方法
 + (void)load {
     // All methods that trigger height cache's invalidation
     SEL selectors[] = {
@@ -258,6 +313,13 @@ static void __FD_TEMPLATE_LAYOUT_CELL_PRIMARY_CALL_IF_CRASH_NOT_OUR_BUG__(void (
     FDPrimaryCall([self fd_deleteRowsAtIndexPaths:indexPaths withRowAnimation:animation];);
 }
 
+
+/**
+ 重载reload
+
+ @param indexPaths <#indexPaths description#>
+ @param animation <#animation description#>
+ */
 - (void)fd_reloadRowsAtIndexPaths:(NSArray<NSIndexPath *> *)indexPaths withRowAnimation:(UITableViewRowAnimation)animation {
     if (self.fd_indexPathHeightCache.automaticallyInvalidateEnabled) {
         [self.fd_indexPathHeightCache buildCachesAtIndexPathsIfNeeded:indexPaths];
@@ -270,6 +332,13 @@ static void __FD_TEMPLATE_LAYOUT_CELL_PRIMARY_CALL_IF_CRASH_NOT_OUR_BUG__(void (
     FDPrimaryCall([self fd_reloadRowsAtIndexPaths:indexPaths withRowAnimation:animation];);
 }
 
+
+/**
+ 移动 sourceIndexPath 到 destinationIndexPath
+ 主要是对缓存的height 进行的交换
+ @param sourceIndexPath  源地址
+ @param destinationIndexPath  目标地址
+ */
 - (void)fd_moveRowAtIndexPath:(NSIndexPath *)sourceIndexPath toIndexPath:(NSIndexPath *)destinationIndexPath {
     if (self.fd_indexPathHeightCache.automaticallyInvalidateEnabled) {
         [self.fd_indexPathHeightCache buildCachesAtIndexPathsIfNeeded:@[sourceIndexPath, destinationIndexPath]];

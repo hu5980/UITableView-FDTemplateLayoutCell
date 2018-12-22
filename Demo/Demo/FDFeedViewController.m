@@ -12,9 +12,9 @@
 #import "FDFeedCell.h"
 
 typedef NS_ENUM(NSInteger, FDSimulatedCacheMode) {
-    FDSimulatedCacheModeNone = 0,
-    FDSimulatedCacheModeCacheByIndexPath,
-    FDSimulatedCacheModeCacheByKey
+    FDSimulatedCacheModeNone = 0, // 不缓存
+    FDSimulatedCacheModeCacheByIndexPath,  // 通过IndexPath缓存
+    FDSimulatedCacheModeCacheByKey         // 通过key 缓存
 };
 
 @interface FDFeedViewController () <UIActionSheetDelegate>

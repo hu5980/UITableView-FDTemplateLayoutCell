@@ -25,14 +25,18 @@
 
 @implementation UITableView (FDTemplateLayoutCell)
 
+// 获取系统自适应的高度
 - (CGFloat)fd_systemFittingHeightForConfiguratedCell:(UITableViewCell *)cell {
+    // 获取tableview的宽度
     CGFloat contentViewWidth = CGRectGetWidth(self.frame);
     
     CGRect cellBounds = cell.bounds;
     cellBounds.size.width = contentViewWidth;
+    //修改cell
     cell.bounds = cellBounds;
-    
+    //设置右边的视图宽度
     CGFloat rightSystemViewsWidth = 0.0;
+    //UITableViewIndex 表示索引视图
     for (UIView *view in self.subviews) {
         if ([view isKindOfClass:NSClassFromString(@"UITableViewIndex")]) {
             rightSystemViewsWidth = CGRectGetWidth(view.frame);
@@ -42,6 +46,7 @@
     
     // If a cell has accessory view or system accessory type, its content view's width is smaller
     // than cell's by some fixed values.
+    // 如果accessoryView 存在
     if (cell.accessoryView) {
         rightSystemViewsWidth += 16 + CGRectGetWidth(cell.accessoryView.frame);
     } else {
@@ -55,10 +60,12 @@
         rightSystemViewsWidth += systemAccessoryWidths[cell.accessoryType];
     }
     
+    //如果屏幕分辨率 >= 3 并且 屏幕width>= 414
     if ([UIScreen mainScreen].scale >= 3 && [UIScreen mainScreen].bounds.size.width >= 414) {
         rightSystemViewsWidth += 4;
     }
     
+    // 得到 contentView的width
     contentViewWidth -= rightSystemViewsWidth;
 
     
@@ -76,6 +83,7 @@
         // Add a hard width constraint to make dynamic content views (like labels) expand vertically instead
         // of growing horizontally, in a flow-layout manner.
         NSLayoutConstraint *widthFenceConstraint = [NSLayoutConstraint constraintWithItem:cell.contentView attribute:NSLayoutAttributeWidth relatedBy:NSLayoutRelationEqual toItem:nil attribute:NSLayoutAttributeNotAnAttribute multiplier:1.0 constant:contentViewWidth];
+        
 
         // [bug fix] after iOS 10.3, Auto Layout engine will add an additional 0 width constraint onto cell's content view, to avoid that, we add constraints to content view's left, right, top and bottom.
         static BOOL isSystemVersionEqualOrGreaterThen10_2 = NO;
@@ -143,10 +151,23 @@
     return fittingHeight;
 }
 
+
+
+/**
+ 通过identifier 获取cell
+
+ @param identifier  标识符
+ @return cell
+ */
 - (__kindof UITableViewCell *)fd_templateCellForReuseIdentifier:(NSString *)identifier {
+    
+    // 标识符长度必须大于0
     NSAssert(identifier.length > 0, @"Expect a valid identifier - %@", identifier);
     
+    //通过objc_getAssociatedObject 获取关联对象 _cmd 代指当前方法的选择子，也就是 @selector(templateCellsByIdentifiers)
+    //_cmd在Objective-C的方法中表示当前方法的selector，正如同self表示当前方法调用的对象实例
     NSMutableDictionary<NSString *, UITableViewCell *> *templateCellsByIdentifiers = objc_getAssociatedObject(self, _cmd);
+    // 如果不存在 设置关联属性
     if (!templateCellsByIdentifiers) {
         templateCellsByIdentifiers = @{}.mutableCopy;
         objc_setAssociatedObject(self, _cmd, templateCellsByIdentifiers, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
@@ -166,11 +187,12 @@
     return templateCell;
 }
 
+// 获取高度
 - (CGFloat)fd_heightForCellWithIdentifier:(NSString *)identifier configuration:(void (^)(id cell))configuration {
     if (!identifier) {
         return 0;
     }
-    
+    // 获取cell
     UITableViewCell *templateLayoutCell = [self fd_templateCellForReuseIdentifier:identifier];
     
     // Manually calls to ensure consistent behavior with actual cells. (that are displayed on screen)
@@ -180,7 +202,7 @@
     if (configuration) {
         configuration(templateLayoutCell);
     }
-    
+    // 获取系统自适应的高度
     return [self fd_systemFittingHeightForConfiguratedCell:templateLayoutCell];
 }
 
@@ -189,13 +211,15 @@
         return 0;
     }
     
-    // Hit cache
+    // Hit cache 首先去命中缓存
     if ([self.fd_indexPathHeightCache existsHeightAtIndexPath:indexPath]) {
         [self fd_debugLog:[NSString stringWithFormat:@"hit cache by index path[%@:%@] - %@", @(indexPath.section), @(indexPath.row), @([self.fd_indexPathHeightCache heightForIndexPath:indexPath])]];
         return [self.fd_indexPathHeightCache heightForIndexPath:indexPath];
     }
     
+    //缓存没有命中 计算高度
     CGFloat height = [self fd_heightForCellWithIdentifier:identifier configuration:configuration];
+    // 缓存高度
     [self.fd_indexPathHeightCache cacheHeight:height byIndexPath:indexPath];
     [self fd_debugLog:[NSString stringWithFormat: @"cached by index path[%@:%@] - %@", @(indexPath.section), @(indexPath.row), @(height)]];
     
@@ -208,13 +232,16 @@
     }
     
     // Hit cache
+    // 首先去命中缓存
     if ([self.fd_keyedHeightCache existsHeightForKey:key]) {
         CGFloat cachedHeight = [self.fd_keyedHeightCache heightForKey:key];
         [self fd_debugLog:[NSString stringWithFormat:@"hit cache by key[%@] - %@", key, @(cachedHeight)]];
         return cachedHeight;
     }
     
+    //缓存没有命中 计算高度
     CGFloat height = [self fd_heightForCellWithIdentifier:identifier configuration:configuration];
+     // 缓存高度
     [self.fd_keyedHeightCache cacheHeight:height byKey:key];
     [self fd_debugLog:[NSString stringWithFormat:@"cached by key[%@] - %@", key, @(height)]];
     
@@ -225,6 +252,13 @@
 
 @implementation UITableView (FDTemplateLayoutHeaderFooterView)
 
+
+/**
+ 通过identifier 获取UITableViewHeaderFooterView
+
+ @param identifier 标识符
+ @return UITableViewHeaderFooterView
+ */
 - (__kindof UITableViewHeaderFooterView *)fd_templateHeaderFooterViewForReuseIdentifier:(NSString *)identifier {
     NSAssert(identifier.length > 0, @"Expect a valid identifier - %@", identifier);
     
@@ -247,6 +281,14 @@
     return templateHeaderFooterView;
 }
 
+
+/**
+ 通过标识符 获取UITableViewHeaderFooterView 的高度
+
+ @param identifier 标识符
+ @param configuration
+ @return 高度
+ */
 - (CGFloat)fd_heightForHeaderFooterViewWithIdentifier:(NSString *)identifier configuration:(void (^)(id))configuration {
     UITableViewHeaderFooterView *templateHeaderFooterView = [self fd_templateHeaderFooterViewForReuseIdentifier:identifier];
     
